@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify, send_file
 import os
 import json
 from werkzeug.utils import secure_filename
-from book_qa import create_rag_chain, load_vector_store, create_vector_store, load_and_chunk_book
+from book_qa import create_rag_chain, load_vector_store, create_vector_store, load_and_chunk_book, merge_and_chunk_all_books
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
@@ -48,34 +48,22 @@ def upload_book():
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
+        print(f"Saved file: {filename}")
 
-        # Process the document
-        chunks = load_and_chunk_book(filepath)
+        # Merge and chunk ALL PDFs in uploads folder (including the one just uploaded)
+        print("Merging all uploaded PDFs and creating unified vector store...")
+        chunks = merge_and_chunk_all_books(app.config['UPLOAD_FOLDER'])
 
-        # Rebuild vector store with ALL documents
-        # Get all PDF files in uploads folder
-        all_chunks = []
-        for file in os.listdir(app.config['UPLOAD_FOLDER']):
-            if file.endswith('.pdf'):
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], file)
-                print(f"Loading {file} for vector store...")
-                file_chunks = load_and_chunk_book(file_path)
-                all_chunks.extend(file_chunks)
-                print(f"Added {len(file_chunks)} chunks from {file}")
-
-        # Create single vector store with ALL documents
-        if all_chunks:
-            vector_store = create_vector_store(all_chunks)
-            print(f"Created vector store with {len(all_chunks)} total chunks from all documents")
-        else:
-            vector_store = create_vector_store(chunks)
+        # Create single unified vector store
+        vector_store = create_vector_store(chunks)
+        print(f"Created unified vector store with {len(chunks)} total chunks from all merged documents")
 
         qa_chain = create_rag_chain(vector_store)
         vector_store_loaded = True
 
         return jsonify({
             'success': True,
-            'message': f'Successfully processed {filename}',
+            'message': f'Successfully processed {filename}. All documents merged and indexed.',
             'chunks': len(chunks),
             'filename': filename
         })

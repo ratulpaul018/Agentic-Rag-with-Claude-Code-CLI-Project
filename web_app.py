@@ -1,7 +1,11 @@
 from flask import Flask, render_template, request, jsonify, send_file
 import os
+import sys
 import json
 from werkzeug.utils import secure_filename
+
+# Add Book QA Project folder to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'Book QA Project'))
 from book_qa import create_rag_chain, load_vector_store, create_vector_store, load_and_chunk_book, merge_and_chunk_all_books
 
 app = Flask(__name__)

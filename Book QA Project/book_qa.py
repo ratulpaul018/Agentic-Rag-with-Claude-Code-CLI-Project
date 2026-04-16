@@ -1,5 +1,5 @@
 import os
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import OllamaEmbeddings
@@ -25,7 +25,7 @@ def load_and_chunk_book(pdf_path: str):
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"Document not found at {pdf_path}")
 
-    loader = PyPDFLoader(pdf_path)
+    loader = PyMuPDFLoader(pdf_path)
     documents = loader.load()
     print(f"Loaded {len(documents)} pages")
 

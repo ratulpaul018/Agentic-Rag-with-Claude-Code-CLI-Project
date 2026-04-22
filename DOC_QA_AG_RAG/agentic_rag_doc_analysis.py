@@ -79,6 +79,33 @@ def create_vector_store(chunks):
     return vector_store
 
 
+def add_to_vector_store(chunks):
+    """Add new document chunks to existing vector store, or create if not exists"""
+    print(f"Adding {len(chunks)} chunks to vector store using {EMBEDDING_MODEL}...")
+    embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
+
+    if os.path.exists(VECTOR_DB_PATH):
+        # Load existing store and add to it
+        vector_store = Chroma(
+            persist_directory=VECTOR_DB_PATH,
+            embedding_function=embeddings,
+            collection_name="agentic_rag"
+        )
+        vector_store.add_documents(chunks)
+        print(f"Added {len(chunks)} chunks to existing vector store")
+    else:
+        # Create fresh store
+        vector_store = Chroma.from_documents(
+            documents=chunks,
+            embedding=embeddings,
+            persist_directory=VECTOR_DB_PATH,
+            collection_name="agentic_rag"
+        )
+        print("Created new vector store")
+
+    return vector_store
+
+
 def load_vector_store():
     """Load existing vector store"""
     embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
@@ -139,7 +166,9 @@ Provide a clear retrieval query that will help find the most relevant informatio
     )
 
     analysis_prompt = PromptTemplate(
-        template="""You are an expert document analyst. Analyze the following retrieved information to answer the question.
+        template="""You are an expert document analyst. 
+        You can analyze documents like books, newspapers, resume, invoices, etc. 
+        Use the following retrieved information to answer the question.
 
 Question: {question}
 
@@ -148,7 +177,7 @@ Retrieved Information:
 
 Provide:
 1. Key findings from the documents
-2. Relevant quotes or data
+2. Relevant quotes or information
 3. Document sources and page numbers
 4. Confidence level in the answer
 
@@ -157,7 +186,8 @@ Analysis:""",
     )
 
     answer_prompt = PromptTemplate(
-        template="""Based on your analysis of the documents, provide a comprehensive answer.
+        template="""Based on your analysis of the documents, 
+        provide a comprehensive and detailed answer.
 
 Question: {question}
 
@@ -166,11 +196,13 @@ Analysis:
 
 Provide a structured, well-organized answer that:
 - Directly addresses the question
-- Explains the reasoning
+- Explains the reasoning and evidence from the documents
 - Highlights key information
 - Notes any limitations or uncertainties
 
-If asked by the user to present the answer in a specific format (like bullet points, numbered lists, or tables), make sure to follow that format.
+If asked by the user to present the answer in a specific format 
+like bullet points, numbered lists, or tables, 
+make sure to follow that format.
 
 Answer:""",
         input_variables=["question", "analysis"]

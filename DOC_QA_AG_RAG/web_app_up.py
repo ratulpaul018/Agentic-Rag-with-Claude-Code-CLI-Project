@@ -11,7 +11,7 @@ sys.path.insert(0, BASE_DIR)
 print("[AGENTIC RAG] Using Agentic RAG System with LangGraph")
 from agentic_rag_doc_analysis import create_agentic_rag_chain as create_rag_chain
 from agentic_rag_doc_analysis import load_agentic_rag as load_vector_store_func
-from agentic_rag_doc_analysis import create_vector_store, load_and_chunk_book
+from agentic_rag_doc_analysis import add_to_vector_store, load_and_chunk_book
 
 TEMPLATE_FOLDER = os.path.join(BASE_DIR, 'templates')
 STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
@@ -141,9 +141,9 @@ def upload_book():
         chunks = load_and_chunk_book(filepath)
         document_chunks = chunks
 
-        # Create single unified vector store
-        vector_store = create_vector_store(chunks)
-        print(f"Created unified vector store with {len(chunks)} total chunks")
+        # Add chunks to unified vector store (create if doesn't exist)
+        vector_store = add_to_vector_store(chunks)
+        print(f"Added {len(chunks)} chunks to unified vector store")
 
         print(f"[DEBUG] Before creating RAG chain: qa_chain = {qa_chain}")
         qa_chain = create_rag_chain(vector_store)

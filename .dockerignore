@@ -1,0 +1,46 @@
+# Documentation and guides
+*.md
+CLAUDE.md
+AGENTIC_RAG_GUIDE.md
+EVALUATION_PROCESS.md
+README.md
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.Python
+venv/
+env/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime data (built in container)
+uploads/
+chroma_db/
+*.log
+
+# Docker files (avoid recursive copy)
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Other unneeded files
+.env
+.env.example
+*.zip
+*.exe
+build_temp/

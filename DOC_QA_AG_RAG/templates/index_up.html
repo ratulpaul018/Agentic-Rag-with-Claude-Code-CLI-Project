@@ -36,7 +36,7 @@
         <!-- Left Column: Upload Section -->
         <section class="card upload-section">
           <div class="section-header">
-            <h2>📄 Upload PDF Documents</h2>
+            <h2>📄 Upload Documents</h2>
             <button
               class="btn-add-book"
               onclick="toggleAddBook()"
@@ -71,12 +71,12 @@
               <polyline points="17 8 12 3 7 8"></polyline>
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
-            <h3>Drag & Drop Your PDF</h3>
-            <p>or click to select a file</p>
+            <h3>Drag & Drop Your Documents</h3>
+            <p>PDF, CSV, TXT, DOC, DOCX, XLSX, PPTX supported</p>
             <input
               type="file"
               id="fileInput"
-              accept=".pdf"
+              accept=".pdf,.csv,.txt,.doc,.docx,.xlsx,.xls,.pptx,.ppt"
               onchange="handleFileSelect(event)"
             />
           </div>
@@ -92,7 +92,7 @@
             onclick="processFile()"
             style="display: none"
           >
-            Read The PDF
+            Process Document
           </button>
 
           <div id="systemStatus" class="system-status">
@@ -110,7 +110,7 @@
             <div id="chatMessages" class="chat-messages">
               <div class="message bot-message">
                 <p>
-                  👋 Hello! Upload a PDF document to get started. I'll help you
+                  👋 Hello! Upload a document to get started. I'll help you
                   find answers to your questions.
                 </p>
               </div>

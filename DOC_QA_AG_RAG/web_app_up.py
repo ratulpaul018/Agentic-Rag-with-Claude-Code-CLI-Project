@@ -11,7 +11,7 @@ sys.path.insert(0, BASE_DIR)
 print("[AGENTIC RAG] Using Agentic RAG System with LangGraph")
 from agentic_rag_doc_analysis import create_agentic_rag_chain as create_rag_chain
 from agentic_rag_doc_analysis import load_agentic_rag as load_vector_store_func
-from agentic_rag_doc_analysis import add_to_vector_store, load_and_chunk_book
+from agentic_rag_doc_analysis import add_to_vector_store, load_and_chunk_book, get_reference_label
 
 TEMPLATE_FOLDER = os.path.join(BASE_DIR, 'templates')
 STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
@@ -35,7 +35,7 @@ qa_chain = None
 vector_store_loaded = False
 document_chunks = None
 
-ALLOWED_EXTENSIONS = {'pdf'}
+ALLOWED_EXTENSIONS = {'pdf', 'csv', 'txt', 'doc', 'docx', 'xlsx', 'xls', 'pptx', 'ppt'}
 
 # Try to load existing vector store on startup
 def load_existing_on_startup():
@@ -129,7 +129,7 @@ def upload_book():
             return jsonify({'success': False, 'error': 'No file selected'}), 400
 
         if not allowed_file(file.filename):
-            return jsonify({'success': False, 'error': 'Only PDF files are allowed'}), 400
+            return jsonify({'success': False, 'error': 'Unsupported file type. Allowed: PDF, CSV, TXT, DOC, DOCX, XLSX, PPTX'}), 400
 
         # Save file
         filename = secure_filename(file.filename)
@@ -186,12 +186,16 @@ def ask_question():
         # Get answer
         result = qa_chain.invoke({"query": question})
 
-        # Format source documents
+        # Format source documents with file-type-aware references
         sources = []
         if 'source_documents' in result:
             for doc in result['source_documents']:
+                file_type = doc.metadata.get('file_type', '.pdf')
                 sources.append({
                     'page': doc.metadata.get('page', 'N/A'),
+                    'file_type': file_type,
+                    'source_document': doc.metadata.get('source_document', 'Unknown'),
+                    'reference': get_reference_label(doc.metadata),
                     'content': doc.page_content[:200] + '...' if len(doc.page_content) > 200 else doc.page_content
                 })
 
@@ -283,4 +287,4 @@ def load_existing():
 
 
 if __name__ == '__main__':
-    app.run(debug=False, port=7000)
+    app.run(debug=False, port=5000)

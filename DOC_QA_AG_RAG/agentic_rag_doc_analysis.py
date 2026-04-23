@@ -4,7 +4,14 @@ Advanced multi-agent retrieval and reasoning for document Q&A
 """
 
 import os
-from langchain_community.document_loaders import PyMuPDFLoader
+from langchain_community.document_loaders import (
+    PyMuPDFLoader,
+    CSVLoader,
+    TextLoader,
+    Docx2txtLoader,
+    UnstructuredExcelLoader,
+    UnstructuredPowerPointLoader,
+)
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import OllamaEmbeddings
@@ -37,21 +44,62 @@ class AgentState(TypedDict):
     source_documents: list
 
 
+def get_loader(file_path: str):
+    """Return appropriate LangChain loader based on file extension"""
+    ext = os.path.splitext(file_path)[1].lower()
+    loaders = {
+        '.pdf': PyMuPDFLoader,
+        '.csv': CSVLoader,
+        '.txt': TextLoader,
+        '.doc': Docx2txtLoader,
+        '.docx': Docx2txtLoader,
+        '.xlsx': UnstructuredExcelLoader,
+        '.xls': UnstructuredExcelLoader,
+        '.pptx': UnstructuredPowerPointLoader,
+        '.ppt': UnstructuredPowerPointLoader,
+    }
+    loader_class = loaders.get(ext)
+    if not loader_class:
+        raise ValueError(f"Unsupported file type: {ext}. Supported: PDF, CSV, TXT, DOC, DOCX, XLSX, XLS, PPTX, PPT")
+    return loader_class(file_path)
+
+
+def get_reference_label(metadata):
+    """Generate file-type-appropriate reference label from document metadata"""
+    ext = metadata.get('file_type', '')
+    if ext == '.pdf':
+        page = metadata.get('page', 0)
+        return f"Page {page + 1}"
+    elif ext == '.csv':
+        return f"Row {metadata.get('row', 'N/A')}"
+    elif ext in ('.pptx', '.ppt'):
+        return f"Slide {metadata.get('page_number', 'N/A')}"
+    elif ext in ('.xlsx', '.xls'):
+        return "Spreadsheet"
+    elif ext in ('.doc', '.docx'):
+        return "Word Document"
+    elif ext == '.txt':
+        return "Text File"
+    return "Section"
+
+
 def load_and_chunk_book(pdf_path: str):
-    """Load PDF and split into chunks with document metadata"""
+    """Load document (PDF, CSV, TXT, DOCX, XLSX, PPTX) and split into chunks with metadata"""
     print(f"Loading document from {pdf_path}...")
 
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"Document not found at {pdf_path}")
 
-    loader = PyMuPDFLoader(pdf_path)
+    loader = get_loader(pdf_path)
     documents = loader.load()
-    print(f"Loaded {len(documents)} pages")
+    print(f"Loaded {len(documents)} sections")
 
-    # Add document filename to metadata
+    # Add document filename and file type to metadata
     filename = os.path.basename(pdf_path)
+    ext = os.path.splitext(filename)[1].lower()
     for doc in documents:
         doc.metadata['source_document'] = filename
+        doc.metadata['file_type'] = ext
 
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
@@ -165,9 +213,11 @@ Provide a clear retrieval query that will help find the most relevant informatio
         input_variables=["question"]
     )
 
+
     analysis_prompt = PromptTemplate(
         template="""You are an expert document analyst. 
         You can analyze documents like books, newspapers, resume, invoices, etc. 
+        You can analyze any kind of documents like csv, excel, powerpoint, word, pdf, etc.
         Use the following retrieved information to answer the question.
 
 Question: {question}
@@ -233,9 +283,9 @@ Answer:""",
         question = state["question"]
         documents = state["documents"]
 
-        # Format context
+        # Format context with file-type-appropriate labels
         context = "\n\n---\n\n".join([
-            f"[Page {doc.metadata.get('page', 'N/A')}] {doc.page_content}"
+            f"[{get_reference_label(doc.metadata)}] {doc.page_content}"
             for doc in documents
         ])
 

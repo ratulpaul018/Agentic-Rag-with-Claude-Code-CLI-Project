@@ -62,8 +62,11 @@ function handleFileSelect(event) {
     selectedFile = files[0];
 
     // Validate file type
-    if (!selectedFile.name.endsWith(".pdf")) {
-      showStatus("Only PDF files are allowed", "error");
+    const allowedExtensions = ['.pdf', '.csv', '.txt', '.doc', '.docx', '.xlsx', '.xls', '.pptx', '.ppt'];
+    const fileExtension = selectedFile.name.substring(selectedFile.name.lastIndexOf('.')).toLowerCase();
+
+    if (!allowedExtensions.includes(fileExtension)) {
+      showStatus("Unsupported file type. Allowed: PDF, CSV, TXT, DOC, DOCX, XLSX, PPTX", "error");
       return;
     }
 
@@ -89,10 +92,10 @@ async function processFile() {
   processBtn.disabled = true;
 
   // Show processing status immediately
-  showStatus("⏳ Processing: Uploading PDF...", "processing");
+  showStatus("⏳ Processing: Uploading document...", "processing");
   fileStatus.textContent = "⏳ Uploading...";
   fileStatus.style.color = "#f59e0b";
-  showLoading(true, "Uploading PDF...");
+  showLoading(true, "Uploading document...");
 
   const formData = new FormData();
   formData.append("file", selectedFile);
@@ -105,7 +108,7 @@ async function processFile() {
 
     fileStatus.textContent = "⏳ Processing with AI...";
     showStatus("⏳ Processing: Creating embeddings with AI...", "processing");
-    showLoading(true, "Processing PDF with AI...");
+    showLoading(true, "Processing document with AI...");
 
     const data = await response.json();
 
@@ -128,11 +131,10 @@ async function processFile() {
       noBookMessage.style.display = "none";
       questionInput.focus();
 
-      // Clear chat
-      chatMessages.innerHTML = "";
+      // Add notification about new document (preserve chat history)
       addMessage(
         "bot",
-        "👋 Ready! I've indexed the document. You can add more documents or start asking questions!",
+        `I have indexed the document. You can ask questions about all indexed documents!`,
       );
 
       // Display suggested questions
@@ -301,41 +303,58 @@ function displaySources(sources) {
   sources.forEach((source, index) => {
     const card = document.createElement("div");
     card.className = "source-card";
-    card.title = "Click to view this page in the document";
+
+    const fileType = (source.file_type || '.pdf').toLowerCase();
+    const isPdf = fileType === '.pdf';
+
+    const icons = {
+      '.pdf': '📖', '.csv': '📊', '.txt': '📝',
+      '.doc': '📋', '.docx': '📋',
+      '.xlsx': '📈', '.xls': '📈',
+      '.pptx': '🎯', '.ppt': '🎯'
+    };
+    const icon = icons[fileType] || '📄';
+    const label = source.reference || `Page ${source.page}`;
 
     const pageTag = document.createElement("div");
     pageTag.className = "source-page";
-    pageTag.innerHTML = `📖 Page ${source.page}`;
-    pageTag.style.cursor = "pointer";
+    pageTag.innerHTML = `${icon} ${label}`;
 
-    // Make page button clickable with proper event handling
-    pageTag.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (currentPdfFile) {
-        // Ensure page number is 1-based (PDF.js uses 1-based indexing)
-        const pageNum = parseInt(source.page);
-        const validPageNum = pageNum > 0 ? pageNum : 1;
-        openPdfPage(currentPdfFile, validPageNum);
-      } else {
-        alert("PDF file not found. Please upload a book again.");
-      }
-    });
+    if (isPdf) {
+      pageTag.style.cursor = "pointer";
+      card.title = "Click to view this page in the document";
+      pageTag.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (currentPdfFile) {
+          const pageNum = parseInt(source.page);
+          const validPageNum = pageNum > 0 ? pageNum : 1;
+          openPdfPage(currentPdfFile, validPageNum);
+        } else {
+          alert("File not found. Please upload the document again.");
+        }
+      });
+      card.addEventListener("click", (e) => {
+        if (e.target !== pageTag && !pageTag.contains(e.target)) {
+          if (currentPdfFile) {
+            const pageNum = parseInt(source.page);
+            const validPageNum = pageNum > 0 ? pageNum : 1;
+            openPdfPage(currentPdfFile, validPageNum);
+          }
+        }
+      });
+    } else {
+      // Non-PDF files cannot be previewed
+      pageTag.style.cursor = "default";
+      card.title = `Preview not available for ${fileType} files`;
+      pageTag.addEventListener("click", (e) => {
+        e.stopPropagation();
+        alert(`This ${fileType} file cannot be previewed in the browser. The content is displayed above.`);
+      });
+    }
 
     const content = document.createElement("div");
     content.className = "source-content";
     content.textContent = source.content;
-
-    // Also make the entire card clickable for better UX
-    card.addEventListener("click", (e) => {
-      if (e.target !== pageTag && !pageTag.contains(e.target)) {
-        if (currentPdfFile) {
-          // Ensure page number is 1-based (PDF.js uses 1-based indexing)
-          const pageNum = parseInt(source.page);
-          const validPageNum = pageNum > 0 ? pageNum : 1;
-          openPdfPage(currentPdfFile, validPageNum);
-        }
-      }
-    });
 
     card.appendChild(pageTag);
     card.appendChild(content);
@@ -543,7 +562,7 @@ function handleKeyPress(event) {
 function toggleAddBook() {
   if (selectedFile) {
     // If a file is selected, show it's ready to add
-    alert('Click "Read The PDF" to add this document to the collection');
+    alert('Click "Process Document" to add this document to the collection');
   } else {
     // If no file selected, open file picker
     fileInput.click();
@@ -605,6 +624,13 @@ function loadBooksList() {
 
 // PDF Display Functions
 function openPdfPage(filename, pageNum) {
+  // Check if file is actually a PDF
+  const isPdf = filename.toLowerCase().endsWith('.pdf');
+  if (!isPdf) {
+    alert(`This file (${filename}) cannot be previewed. The content is displayed in the chat above.`);
+    return;
+  }
+
   const modal = document.getElementById("pdfModal");
   const overlay = document.getElementById("pdfOverlay");
   const container = document.getElementById("pdfContainer");

@@ -14,15 +14,17 @@ This results in **deeper analysis** and **better answers** for complex questions
 
 ## Features
 
+✅ **Multi-File Support** - PDF, CSV, TXT, DOCX, XLSX, PPTX (9 file types)
 ✅ **Intelligent Multi-Step Reasoning** - LangGraph StateGraph orchestration
 ✅ **Document-Aware Analysis** - Understands context across chunks
-✅ **Fast PDF Processing** - PyMuPDFLoader for reliable extraction
+✅ **File-Type Aware References** - Appropriate labels (Page, Row, Slide, etc.)
 ✅ **Ollama-Generated Suggestions** - AI-powered recommended questions after upload
 ✅ **Interactive Web UI** - Clean interface with chat and source references
-✅ **Source Attribution** - Click references to view PDF pages
+✅ **Source Attribution** - Click references to view pages (PDF) or content (others)
 ✅ **Vector Search** - ChromaDB with semantic understanding
 ✅ **Local Processing** - Private, no external APIs
 ✅ **Auto-Loading** - Vector store automatically loads on Flask startup
+✅ **Chat Persistence** - Conversation history survives document uploads
 ✅ **Professional Follow-up** - Smart follow-up message after each answer
 
 ## Installation
@@ -38,19 +40,23 @@ ollama serve
 python web_app_up.py
 ```
 
-Then open **http://127.0.0.1:7000** in your browser.
+Then open **http://127.0.0.1:5000** in your browser.
 
 ## Usage
 
 ### Upload Documents
-1. Drag & drop or select PDF files
-2. Click "Read The PDF" to process
+1. Drag & drop or select documents (PDF, CSV, TXT, DOCX, XLSX, PPTX)
+2. Click "Process Document" to process
 3. Wait for indexing to complete
+4. AI-generated suggested questions appear automatically
 
 ### Ask Questions
 1. Type your question in the input field
 2. System analyzes and reasons through the answer
-3. Click references to view source pages
+3. Click references to view content:
+   - **PDF**: View exact pages in modal viewer
+   - **CSV/Excel**: Preview row content
+   - **Other**: Show extracted text snippet
 
 ### System Management
 - **Reset** - Clear all documents and start fresh
@@ -61,16 +67,17 @@ Then open **http://127.0.0.1:7000** in your browser.
 ```
 DOC_QA_AG_RAG/
 ├── web_app_up.py                       # Flask server (Agentic RAG with auto-load)
-├── agentic_rag_doc_analysis.py         # Agentic RAG logic with LangGraph
+├── agentic_rag_doc_analysis.py         # Agentic RAG logic with multi-file support
 ├── static/
-│   ├── script_up.js                    # Frontend JavaScript (updated)
-│   └── style_up.css                    # Styling (updated)
+│   ├── script_up.js                    # Frontend JavaScript (file-type aware)
+│   └── style_up.css                    # Styling
 ├── templates/
-│   └── index_up.html                   # Web interface (updated)
-├── uploads/                            # Uploaded PDFs (auto-created)
+│   └── index_up.html                   # Web interface
+├── uploads/                            # Uploaded documents (auto-created)
 ├── chroma_db/                          # Vector database (auto-created, persistent)
 ├── README.md                           # This file
-└── CLAUDE.md                           # Development documentation
+├── CLAUDE.md                           # Development documentation
+└── DOCKER_SETUP.md                     # Docker deployment guide
 ```
 
 ## Configuration
@@ -165,9 +172,28 @@ Response: {
 
 ## Key Improvements
 
+### Multi-File Type Support
+System now works with 9 file types, not just PDF:
+- **Supported**: PDF, CSV, TXT, DOC, DOCX, XLSX, XLS, PPTX, PPT
+- **Dynamic Loaders**: Automatic file type detection and appropriate loader
+- **Unified Indexing**: All files indexed in same vector store for unified search
+- **Smart References**: File-type aware labels (Page, Row, Slide, Spreadsheet, etc.)
+
+### Chat History Persistence
+Conversations survive document uploads:
+- Add new documents without losing chat history
+- Continue asking questions about multiple documents
+- Build knowledge incrementally
+
+### File-Type Agnostic UI
+Interface doesn't assume PDF format:
+- "Upload documents" not "Upload PDFs"
+- "Process document" not "Read the PDF"
+- File-type appropriate source preview
+
 ### Auto-Loading Vector Store
-When Flask starts, it automatically loads any existing vector store from disk. This means:
-- Users don't need to re-upload PDFs after Flask restarts
+When Flask starts, it automatically loads any existing vector store from disk:
+- Users don't need to re-upload documents after Flask restarts
 - Vector store persists across sessions
 - Immediate availability for Q&A without waiting
 
@@ -183,6 +209,11 @@ After each answer, a friendly follow-up message encourages users to ask more que
 
 ## Troubleshooting
 
+### File Upload Issues
+- **Unsupported file type**: Check ALLOWED_EXTENSIONS in web_app_up.py
+- **Large files (>100MB)**: Increase MAX_CONTENT_LENGTH in web_app_up.py
+- **Encoding errors**: Ensure file is in standard format (UTF-8 for text files)
+
 ### Ollama Not Running
 ```bash
 # Make sure Ollama is running in another terminal
@@ -196,20 +227,30 @@ python web_app_up.py
 - Check if `chroma_db/` directory exists and has data
 - Ensure `chroma_db/chroma.sqlite3` file exists
 - Check Flask startup logs for errors
+- Try resetting system and re-uploading documents
+
+### Multi-File Search Issues
+- All documents are in unified vector store
+- Search results may mix content from different files
+- Source labels show which file content came from
+- For file-specific search, reset and upload one file at a time
 
 ### Out of Memory
 - Reduce RETRIEVAL_K (from 15 to 5-10)
 - Reduce CHUNK_SIZE (from 900 to 500)
+- Process fewer documents at once
 
 ### Slow Responses
 - This is normal for Agentic RAG
 - Complex questions take 8-15 seconds
 - Each request goes through 3 reasoning stages
+- Multi-file searches may take longer due to more context
 
 ### Questions Not Generating
 - Check that document chunks were created (chunks > 0)
 - Verify Ollama is running on port 11434
 - Check Flask logs for Ollama errors
+- Ensure document has readable text content
 
 ## Next Steps
 

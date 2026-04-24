@@ -90,11 +90,13 @@ Tuning guide:
 
 ### POST /api/upload
 
-- **Purpose**: Upload and index PDF documents
+- **Purpose**: Upload and index documents (PDF, CSV, TXT, DOCX, XLSX, PPTX)
 - **Request**: multipart/form-data with 'file' field
-- **Response**: `{ success, filename, chunks, message, suggested_questions[] }`
-- **Logic**: Loads PDF → chunks → embeddings → ChromaDB → generates AI questions
-- **New Feature**: Generates 4 suggested questions using Ollama LLM from document chunks (temperature=0.5)
+- **Response**: `{ success, filename, chunks, message, suggested_questions[], mode }`
+- **Logic**: Loads document → chunks → embeddings → ChromaDB → generates AI questions
+- **Multi-file**: Supports 9 file types with appropriate loaders and metadata
+- **Message**: Generic "I have indexed the document..." (no file type mention)
+- **Feature**: Generates 4 suggested questions using Ollama LLM from chunks (temperature=0.5)
 
 ### POST /api/ask
 
@@ -177,7 +179,7 @@ ollama serve
 
 # In another terminal
 python web_app_up.py
-# Open http://127.0.0.1:7000
+# Open http://127.0.0.1:5000
 # Upload PDF → View suggested questions → Ask questions → Check responses
 ```
 
@@ -195,11 +197,17 @@ python web_app_up.py
 
 ### ❌ DO NOT
 
-- Change ALLOWED_EXTENSIONS from {'pdf'} (security)
 - Use external APIs for embeddings (should be local Ollama)
 - Store sensitive data in uploads/ (temporary only)
 - Modify vector store path without updating everywhere
 - Skip document metadata in sources
+
+### ✅ MULTI-FILE SUPPORT
+
+- ALLOWED_EXTENSIONS: {'pdf', 'csv', 'txt', 'doc', 'docx', 'xlsx', 'xls', 'pptx', 'ppt'}
+- Each file type has appropriate loader (PyMuPDFLoader, CSVLoader, etc.)
+- Source references show file-type appropriate labels (Page, Row, Slide, etc.)
+- UI is file-type agnostic (no "PDF" in user messages)
 
 ### ✅ DO
 
@@ -209,7 +217,38 @@ python web_app_up.py
 - Test before pushing to main
 - Document any new parameters in README.md
 
-## Recent Updates (April 20, 2026)
+## Recent Updates (April 23, 2026)
+
+### Multi-File Type Support
+- **Files**: PDF, CSV, TXT, DOC, DOCX, XLSX, XLS, PPTX, PPT
+- **Loaders**: Dynamic loader selection in `get_loader()` function
+- **Metadata**: File type stored in chunks for reference labels
+- **Implementation**: agentic_rag_doc_analysis.py with 9 file type handlers
+- **Impact**: System is now file-type agnostic, not PDF-only
+
+### File-Type Aware Source References
+- **Function**: `get_reference_label(metadata)` generates appropriate labels
+- **Examples**: "Page X" (PDF), "Row X" (CSV), "Slide X" (PPTX), "Spreadsheet" (XLSX)
+- **UI Integration**: Sources display with file-type icons and labels
+- **Non-PDF Handling**: Source cards for non-PDF files show content preview, not clickable
+
+### Chat History Persistence
+- **Problem**: Chat messages were cleared when uploading new documents
+- **Solution**: Removed `chatMessages.innerHTML = ""` from upload handler
+- **Impact**: Users can add documents without losing conversation history
+
+### File-Type Agnostic Messaging
+- **Changes**: Removed "PDF" from all user-facing messages
+- **Examples**: "Uploading document..." instead of "Uploading PDF..."
+- **Benefits**: UI works naturally for any file type
+
+### Removed Expected Time Estimates
+- **Removed**: Upload time estimates (~X minutes)
+- **Removed**: Processing time estimates
+- **Removed**: Q&A thinking time estimates (Expected: ~X seconds)
+- **Impact**: Cleaner UI, no false promises on speed
+
+## Previous Updates (April 20, 2026)
 
 ### Auto-Loading Vector Store on Startup
 - **Problem**: Flask restarts would lose the qa_chain global variable, requiring users to re-upload PDFs
@@ -218,20 +257,20 @@ python web_app_up.py
 - **Code**: In web_app_up.py, called during Flask app initialization
 
 ### Ollama-Based Suggested Questions
-- **Feature**: AI-generated questions appear immediately after PDF upload
+- **Feature**: AI-generated questions appear immediately after upload
 - **Implementation**: `generate_suggested_questions(chunks)` uses LangChain + Ollama chain
 - **Details**:
   - Extracts context from first 6 document chunks
   - Uses PromptTemplate to request exactly 4 specific questions
   - Temperature set to 0.5 for balanced quality
   - Returns up to 4 questions, filters out duplicates and short questions
-- **Code**: In web_app_up.py, lines 45-93
+- **Code**: In web_app_up.py, lines 61-110
 
 ### Professional Follow-Up Message
 - **Feature**: After each answer, system displays "❓ What more can I help you with?"
 - **Purpose**: Encourages continued interaction and engagement
 - **Implementation**: Added 'follow_up' field to /api/ask response
-- **Code**: In web_app_up.py, line 185
+- **Code**: In web_app_up.py, line 207
 
 ## Common Issues & Solutions
 
@@ -357,7 +396,7 @@ All dependencies installed from parent `requirements.txt`
 - **LangGraph Docs**: https://langchain-ai.github.io/langgraph/
 - **Ollama**: http://127.0.0.1:11434 (must be running)
 - **ChromaDB**: Persistent at ./chroma_db/
-- **Flask Server**: http://127.0.0.1:7000
+- **Flask Server**: http://127.0.0.1:5000
 
 ## Quick Commands
 
@@ -369,14 +408,14 @@ ollama serve
 python web_app_up.py
 
 # Check status
-curl -s http://127.0.0.1:7000/api/status | python -m json.tool
+curl -s http://127.0.0.1:5000/api/status | python -m json.tool
 
 # Test API
-curl -X POST http://127.0.0.1:7000/api/ask \
+curl -X POST http://127.0.0.1:5000/api/ask \
   -H "Content-Type: application/json" \
   -d '{"question":"test"}'
 
-# Kill process on port 7000 (Windows)
+# Kill process on port 5000 (Windows)
 taskkill /F /IM python.exe  # or find and kill specific process
 
 # Clear data (fresh start)
@@ -385,11 +424,15 @@ rm -rf uploads/ chroma_db/
 
 ---
 
-**Last Updated**: 2026-04-20
-**Version**: 1.1 (Agentic RAG with Auto-Loading, Suggested Questions, Follow-up)
+**Last Updated**: 2026-04-23
+**Version**: 1.2 (Multi-file Support, File-type Aware, Chat Persistence, No Time Estimates)
 **Status**: ✅ Production Ready
 **Key Changes**:
-- Auto-loads vector store on Flask startup
+- Multi-file support (PDF, CSV, TXT, DOCX, XLSX, PPTX)
+- File-type aware reference labels
+- Chat history persistence on new uploads
+- File-type agnostic UI messaging
+- Removed time estimate displays
+- Auto-loads vector store on startup
 - Ollama-based suggested questions
 - Professional follow-up messages
-- Fixed qa_chain persistence issue
